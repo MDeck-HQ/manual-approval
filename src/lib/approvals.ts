@@ -1,8 +1,19 @@
-import { DOT_DEPLOY_API_BASE_URL } from "./constants";
+import {
+  DOT_DEPLOY_API_BASE_URL,
+  DOT_DEPLOY_ARTIFACT_NAME,
+  VERIFICATION_TOKEN_FILE_NAME,
+} from "./constants";
 import * as core from "@actions/core";
 import { HttpClient } from "@actions/http-client";
+import artifact, { ArtifactNotFoundError } from "@actions/artifact";
+import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { nanoid } from "nanoid";
 
 export interface ApprovalRequestPayload {
+  artifact_id: number;
+  verification_token: string;
   repo_id: number;
   workflow_run_id: number;
   workflow_run_attempt: number;
@@ -14,12 +25,56 @@ export interface ApprovalRequestResponse {
   id: string;
 }
 
-export function getApprovalPayload(): ApprovalRequestPayload {
+async function deleteArtifactIfExists(artifactName: string): Promise<void> {
+  try {
+    await artifact.deleteArtifact(artifactName);
+  } catch (error) {
+    if (error instanceof ArtifactNotFoundError) {
+      core.debug(`Skipping deletion of '${artifactName}', it does not exist`);
+      return;
+    }
+
+    // Best effort, we don't want to fail the action if this fails
+    core.debug(`Unable to delete artifact: ${(error as Error).message}`);
+  }
+}
+
+export async function uploadArtifact({
+  name,
+  content,
+  filename,
+}: {
+  name: string;
+  filename: string;
+  content: string;
+}) {
+  // First try to delete the artifact if it exists
+  await deleteArtifactIfExists(name);
+
+  const appPrefix = "dot-deploy";
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), appPrefix));
+  const file = path.join(tmpDir, filename);
+  await fs.writeFile(file, content);
+
+  const { id, size } = await artifact.uploadArtifact(name, [file], tmpDir, {
+    retentionDays: 1,
+    compressionLevel: 0,
+  });
+
+  return { id, size };
+}
+
+export function getApprovalPayload(
+  id: number,
+  verificationToken: string,
+): ApprovalRequestPayload {
   const payload: ApprovalRequestPayload = {
     repo_id: Number(process.env.GITHUB_REPOSITORY_ID),
     workflow_run_id: Number(process.env.GITHUB_RUN_ID),
     workflow_run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
     workflow_run_number: Number(process.env.GITHUB_RUN_NUMBER),
+    artifact_id: id,
+    verification_token: verificationToken,
   };
 
   const approvers = core.getInput("approvers");
@@ -38,15 +93,22 @@ export function getApprovalPayload(): ApprovalRequestPayload {
  * @returns Returns the approval ID (this can be used to request approval status)
  */
 export async function requestApproval(): Promise<string> {
+  const verificationToken = nanoid(32);
+  const { id, size } = await uploadArtifact({
+    name: DOT_DEPLOY_ARTIFACT_NAME,
+    filename: VERIFICATION_TOKEN_FILE_NAME,
+    content: verificationToken,
+  });
+
   const client = new HttpClient("dot-deploy");
-  const payload = getApprovalPayload();
+  const payload = getApprovalPayload(id as number, verificationToken);
+
+  core.debug(`Created artifact ${id} with size ${size}`);
+  core.debug("Requesting manual approval");
 
   const response = await client.postJson<ApprovalRequestResponse>(
     `${DOT_DEPLOY_API_BASE_URL}/actions/manual-approvals`,
     payload,
-    {
-      Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-    },
   );
 
   if (response.statusCode !== 200) {
