@@ -19,6 +19,7 @@ export interface ApprovalRequestPayload {
   workflow_run_attempt: number;
   workflow_run_number: number;
   approvers?: string[];
+  message: string;
 }
 
 export interface ApprovalRequestResponse {
@@ -75,6 +76,7 @@ export function getApprovalPayload(
     workflow_run_number: Number(process.env.GITHUB_RUN_NUMBER),
     artifact_id: id,
     verification_token: verificationToken,
+    message: core.getInput("message"),
   };
 
   const approvers = core.getInput("approvers");
