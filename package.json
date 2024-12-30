@@ -1,0 +1,32 @@
+{
+  "name": "manual-approval",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "scripts": {
+    "format": "prettier --write .",
+    "build": "ncc build src/main.ts -o dist/main && ncc build src/pre.ts -o dist/pre && ncc build src/post.ts -o dist/post",
+    "prepare": "husky"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MDeck-HQ/manual-approval.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/MDeck-HQ/manual-approval/issues"
+  },
+  "homepage": "https://github.com/MDeck-HQ/manual-approval#readme",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^20.17.7",
+    "@vercel/ncc": "^0.38.3",
+    "husky": "^9.1.7",
+    "prettier": "^3.3.3",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/http-client": "^2.2.3"
+  }
+}

@@ -1,0 +1,22 @@
+name: 'Manual Approval'
+description: |
+  Wait for a manual approval before continuing the workflow. This action will pause the workflow until a user approves the build or deployment.
+inputs:
+  message:
+    description: "The message to display to the user when asking for approval"
+    required: true
+  approvers:
+    description: |
+      A list of the Slack ID of the users or groups that are allowed to approve the build or deployment.
+      A slack message will be sent to these users or channels. Anyone who can see the message can approve the build or deployment.
+      If this list is empty, the message will be sent to the channel or user configured in the dot.Deploy settings for this
+      repository (setting key `slack.approvers`). If that is not set, we will sent the message to the channel configured
+      for Slack notifications in the repository settings (setting key `slack.channel`).
+    required: false
+  timeout:
+    description: "The time in seconds to wait for an approval before timing out. If not set, the action will wait until GitHub cancels the workflow."
+    required: false
+runs:
+  using: node20
+  main: "dist/main/index.js"
+  pre: "dist/main/pre.js"
