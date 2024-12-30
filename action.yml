@@ -19,4 +19,4 @@ inputs:
 runs:
   using: node20
   main: "dist/main/index.js"
-  pre: "dist/main/pre.js"
+  pre: "dist/pre/index.js"
