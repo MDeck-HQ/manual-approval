@@ -9,7 +9,7 @@ const run = async () => {
   if (isNaN(timeout) || timeout <= 0) {
     timeout = Infinity;
   } else {
-    core.debug(`Will wait for approval for ${timeout} seconds`);
+    core.info(`Will wait for approval for ${timeout} seconds`);
     timeout *= 1000; // Convert seconds to milliseconds
   }
 
@@ -17,6 +17,7 @@ const run = async () => {
   const end = start + timeout;
 
   // Poll for approval status until we get an approval or the timeout is reached
+  core.info(`Waiting for manual approval...`);
   while (Date.now() < end) {
     try {
       const status = await getApprovalStatus(approvalId);
